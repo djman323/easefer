@@ -4,6 +4,8 @@ import time
 from pathlib import Path
 import streamlit.components.v1 as components
 import base64
+import zipfile
+from io import BytesIO
 
 # Page config (MUST BE THE FIRST STREAMLIT COMMAND)
 st.set_page_config(page_title="Easefer", page_icon="📁", layout="centered")
@@ -29,6 +31,43 @@ def get_files_marked_for_deletion():
 def clear_deletion_list():
     if os.path.exists(DELETE_MARKER_FILE):
         os.remove(DELETE_MARKER_FILE)
+
+# Function to create a ZIP file of all files in UPLOAD_DIR
+def create_zip_of_files():
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for file in os.listdir(UPLOAD_DIR):
+            file_path = os.path.join(UPLOAD_DIR, file)
+            zip_file.write(file_path, file)
+    buffer.seek(0)
+    return buffer
+
+# Function to generate file preview
+def get_file_preview(file_path):
+    file_name = os.path.basename(file_path)
+    file_size = os.path.getsize(file_path) / 1024  # Size in KB
+    extension = file_name.split(".")[-1].lower() if "." in file_name else ""
+
+    # Image preview
+    if extension in ["png", "jpg", "jpeg"]:
+        with open(file_path, "rb") as f:
+            img_data = base64.b64encode(f.read()).decode()
+        return f'<img src="data:image/{extension};base64,{img_data}" width="100" style="border-radius: 5px;" />'
+    
+    # Text preview
+    elif extension in ["txt", "md"]:
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read(100)  # First 100 characters
+                if len(content) == 100:
+                    content += "..."
+                return f'<p style="font-size: 0.9rem; color: #a5b4fc;">Preview: {content}</p>'
+        except Exception:
+            return f'<p style="font-size: 0.9rem; color: #a5b4fc;">Preview: (Unable to read text)</p>'
+    
+    # Default metadata for other files
+    else:
+        return f'<p style="font-size: 0.9rem; color: #a5b4fc;">Size: {file_size:.2f} KB</p>'
 
 # Custom CSS for Dark Theme
 st.markdown("""
@@ -184,6 +223,15 @@ st.markdown("""
         color: #e0e7ff;
         border-radius: 10px;
     }
+
+    /* File Preview Container */
+    .file-preview {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 15px;
+        margin: 10px 0;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -223,7 +271,7 @@ def check_for_file_changes():
         current_files = set(os.listdir(UPLOAD_DIR))
         if current_files != st.session_state.last_files:
             st.session_state.last_files = current_files
-            st.rerun()  # Updated to st.rerun()
+            st.rerun()
         st.session_state.last_file_check = current_time
 
 # Tabs
@@ -289,17 +337,41 @@ with tabs[2]:
     if not files:
         st.info("📭 No files available for download.")
     else:
+        # Download All button
+        zip_buffer = create_zip_of_files()
+        st.download_button(
+            label="⬇️ Download All Files",
+            data=zip_buffer,
+            file_name="all_files.zip",
+            mime="application/zip",
+            key="download_all"
+        )
+
+        # Individual file previews and downloads
         for file in files:
-            with open(os.path.join(UPLOAD_DIR, file), "rb") as f:
+            file_path = os.path.join(UPLOAD_DIR, file)
+            preview = get_file_preview(file_path)
+            st.markdown(f"""
+            <div class="file-preview">
+                <div>{preview}</div>
+                <div>
+            """, unsafe_allow_html=True)
+            
+            with open(file_path, "rb") as f:
                 btn = st.download_button(
                     label=f"⬇️ Download {file}",
                     data=f,
                     file_name=file,
                     mime="application/octet-stream",
-                    key=file
+                    key=f"download_{file}"
                 )
             if btn and delete_after:
                 mark_for_deletion(file)
+            
+            st.markdown("""
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
     st.markdown("""
     </div>
