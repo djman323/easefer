@@ -1,9 +1,9 @@
 import streamlit as st
 import os
+import time
 from pathlib import Path
 import streamlit.components.v1 as components
 import base64
-from streamlit_autorefresh import st_autorefresh
 
 # Page config (MUST BE THE FIRST STREAMLIT COMMAND)
 st.set_page_config(page_title="Easefer", page_icon="📁", layout="centered")
@@ -50,7 +50,7 @@ st.markdown("""
         font-weight: 700;
         text-align: center;
         color: #e0e7ff;
-        text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+        text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4);
         margin-bottom: 0.5rem;
     }
 
@@ -184,7 +184,6 @@ st.markdown("""
         color: #e0e7ff;
         border-radius: 10px;
     }
-
     </style>
 """, unsafe_allow_html=True)
 
@@ -210,6 +209,22 @@ st.markdown(f"""
 st.markdown('<p style="text-align:center;">Transfer files between mobile and laptop with ease.</p>', unsafe_allow_html=True)
 st.markdown('<div style="text-align:center;">Made with ❤️ by <a href="https://github.com/djman323" target="_blank">Devansh</a></div>', unsafe_allow_html=True)
 st.markdown("---")
+
+# State to track the last file check time
+if "last_file_check" not in st.session_state:
+    st.session_state.last_file_check = time.time()
+if "last_files" not in st.session_state:
+    st.session_state.last_files = set(os.listdir(UPLOAD_DIR))
+
+# Polling mechanism to check for file changes every 5 seconds
+def check_for_file_changes():
+    current_time = time.time()
+    if current_time - st.session_state.last_file_check >= 5:  # Check every 5 seconds
+        current_files = set(os.listdir(UPLOAD_DIR))
+        if current_files != st.session_state.last_files:
+            st.session_state.last_files = current_files
+            st.experimental_rerun()
+        st.session_state.last_file_check = current_time
 
 # Tabs
 tabs = st.tabs(["🏠 Home", "📤 Upload", "📥 Files", "ℹ️ About"])
@@ -252,8 +267,8 @@ with tabs[1]:
 
 # --- Files Tab ---
 with tabs[2]:
-    # Auto-refresh every 5 seconds (5000 ms) to check for file updates
-    st_autorefresh(interval=5000, key="files_refresh")
+    # Check for file changes to trigger auto-refresh
+    check_for_file_changes()
 
     st.markdown("""
     <div class="glass-card">
