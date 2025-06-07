@@ -2,7 +2,9 @@ import streamlit as st
 import os
 from pathlib import Path
 import streamlit.components.v1 as components
-img="logo.png"
+import base64
+from streamlit_autorefresh import st_autorefresh
+
 # Page config (MUST BE THE FIRST STREAMLIT COMMAND)
 st.set_page_config(page_title="Easefer", page_icon="📁", layout="centered")
 
@@ -34,7 +36,6 @@ st.markdown("""
     /* General Styling */
     body {
         font-family: 'Poppins', sans-serif;
-      
         color: #e0e7ff;
     }
 
@@ -72,8 +73,9 @@ st.markdown("""
         padding: 20px;
         backdrop-filter: blur(15px);
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 2px solid #ffffff; /* Solid white border as requested */
         transition: transform 0.3s ease, box-shadow 0.3s ease;
+        margin: 20px 0;
     }
 
     .glass-card:hover {
@@ -187,25 +189,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Title and Author
-import base64
-
-# Encode image to base64
 def get_base64_image(image_path):
-    with open(image_path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
+    try:
+        with open(image_path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    except FileNotFoundError:
+        st.error(f"Image file {image_path} not found. Please ensure the file exists in the same directory as this script.")
+        return ""
 
 img_base64 = get_base64_image("logo.png")
 
 # Logo + title together
 st.markdown(f"""
-<div style='display: flex; align-items: center; justify-content: center; gap: 1rem;'>
+<div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
     <img src="data:image/png;base64,{img_base64}" width="75" style="border-radius: 20px;" />
-    <h1 style='margin: 0;'>Easefer</h1>
+    <h1 style="margin: 0;">Easefer</h1>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("<p style='text-align:center;'>Transfer files between mobile and laptop with ease.</p>", unsafe_allow_html=True)
-st.markdown("<div style='text-align:center;'>Made with ❤️ by <a href='https://github.com/djman323' target='_blank'>Devansh</a></div>", unsafe_allow_html=True)
+st.markdown('<p style="text-align:center;">Transfer files between mobile and laptop with ease.</p>', unsafe_allow_html=True)
+st.markdown('<div style="text-align:center;">Made with ❤️ by <a href="https://github.com/djman323" target="_blank">Devansh</a></div>', unsafe_allow_html=True)
 st.markdown("---")
 
 # Tabs
@@ -213,10 +216,10 @@ tabs = st.tabs(["🏠 Home", "📤 Upload", "📥 Files", "ℹ️ About"])
 
 # --- Home Tab ---
 with tabs[0]:
-    st.markdown("### 🏠 Welcome")
     st.markdown("""
-    <div class='glass-card'>
-        <ul style='list-style-type: none; padding: 0;'>
+    <div class="glass-card">
+        <h3>🏠 Welcome</h3>
+        <ul style="list-style-type: none; padding: 0;">
             <li>🔒 <strong>No login</strong> or account needed</li>
             <li>📂 <strong>Drag & drop</strong> or multi-select files</li>
             <li>🗑️ <strong>Auto-delete</strong> after download (optional)</li>
@@ -226,8 +229,11 @@ with tabs[0]:
 
 # --- Upload Tab ---
 with tabs[1]:
-    st.markdown("### 📤 Upload Files")
-
+    st.markdown("""
+    <div class="glass-card">
+        <h3>📤 Upload Files</h3>
+    """, unsafe_allow_html=True)
+    
     uploaded_files = st.file_uploader("Select one or more files to upload", accept_multiple_files=True)
 
     if st.button("📤 Upload"):
@@ -240,11 +246,19 @@ with tabs[1]:
         else:
             st.warning("⚠️ Please select at least one file.")
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("""
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- Files Tab ---
 with tabs[2]:
-    st.markdown("### 📥 Available Files")
+    # Auto-refresh every 5 seconds (5000 ms) to check for file updates
+    st_autorefresh(interval=5000, key="files_refresh")
+
+    st.markdown("""
+    <div class="glass-card">
+        <h3>📥 Available Files</h3>
+    """, unsafe_allow_html=True)
     
     delete_after = st.toggle("🗑️ Delete after download", value=True)
 
@@ -271,21 +285,23 @@ with tabs[2]:
                 )
             if btn and delete_after:
                 mark_for_deletion(file)
-                st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("""
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- About Tab ---
 with tabs[3]:
-    st.markdown("### ℹ️ About Easefer")
     st.markdown("""
-    <div class='glass-card'>
+    <div class="glass-card">
+        <h3>ℹ️ About Easefer</h3>
         <p><strong>Easefer</strong> is a private, local file-sharing tool built with Python and Streamlit.</p>
         <p><strong>Key Features:</strong></p>
-        <ul style='list-style-type: none; padding: 0;'>
+        <ul style="list-style-type: none; padding: 0;">
             <li>🎨 Clean and simple UI</li>
             <li>🏠 Runs locally on your network</li>
             <li>🔒 Fast and secure (your files stay on your machine)</li>
         </ul>
-        <p>Want to contribute or raise an issue? Visit the <a href='https://github.com/djman323' target='_blank'>GitHub repo</a>.</p>
+        <p>Want to contribute or raise an issue? Visit the <a href="https://github.com/djman323" target="_blank">GitHub repo</a>.</p>
     </div>
     """, unsafe_allow_html=True)
