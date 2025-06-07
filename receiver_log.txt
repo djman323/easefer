@@ -1,0 +1,4 @@
+[19:52:29] Server started on port 9999.
+[19:52:40] Received file: WIN_20240124_17_41_20_Pro.jpg
+[20:05:22] Server started on port 9999.
+[20:05:28] Received file: clip-4-(1) - Made with Clipchamp.mp4
