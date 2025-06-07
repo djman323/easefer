@@ -52,7 +52,7 @@ def get_file_preview(file_path):
     if extension in ["png", "jpg", "jpeg"]:
         with open(file_path, "rb") as f:
             img_data = base64.b64encode(f.read()).decode()
-        return f'<img src="data:image/{extension};base64,{img_data}" width="100" style="border-radius: 5px;" />'
+        return f'<img src="data:image/{extension};base64,{img_data}" width="100" style="border-radius: 5px; object-fit: cover;" />'
     
     # Text preview
     elif extension in ["txt", "md"]:
@@ -61,9 +61,9 @@ def get_file_preview(file_path):
                 content = f.read(100)  # First 100 characters
                 if len(content) == 100:
                     content += "..."
-                return f'<p style="font-size: 0.9rem; color: #a5b4fc;">Preview: {content}</p>'
+                return f'<p style="font-size: 0.9rem; color: #a5b4fc;">{content}</p>'
         except Exception:
-            return f'<p style="font-size: 0.9rem; color: #a5b4fc;">Preview: (Unable to read text)</p>'
+            return f'<p style="font-size: 0.9rem; color: #a5b4fc;">(Unable to read text)</p>'
     
     # Default metadata for other files
     else:
@@ -112,7 +112,7 @@ st.markdown("""
         padding: 20px;
         backdrop-filter: blur(15px);
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        border: 2px solid #ffffff; /* Solid white border as requested */
+        border: 2px solid #ffffff; /* Solid white border */
         transition: transform 0.3s ease, box-shadow 0.3s ease;
         margin: 20px 0;
     }
@@ -225,12 +225,37 @@ st.markdown("""
     }
 
     /* File Preview Container */
-    .file-preview {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
+    .file-preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 15px;
-        margin: 10px 0;
+        margin: 20px 0;
+    }
+
+    .file-preview-card {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        padding: 10px;
+        text-align: center;
+        transition: transform 0.2s ease;
+    }
+
+    .file-preview-card:hover {
+        transform: scale(1.05);
+    }
+
+    .file-preview-card img {
+        max-width: 100%;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+
+    .file-preview-card p {
+        margin: 5px 0;
+        font-size: 0.9rem;
+        color: #a5b4fc;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -298,6 +323,7 @@ with tabs[1]:
     """, unsafe_allow_html=True)
     
     uploaded_files = st.file_uploader("Select one or more files to upload", accept_multiple_files=True)
+    delete_after_upload = st.toggle("🗑️ Delete after upload", value=False)
 
     if st.button("📤 Upload"):
         if uploaded_files:
@@ -305,7 +331,11 @@ with tabs[1]:
                 file_path = os.path.join(UPLOAD_DIR, file.name)
                 with open(file_path, "wb") as f:
                     f.write(file.getbuffer())
+                if delete_after_upload:
+                    mark_for_deletion(file.name)
             st.success(f"✅ Uploaded {len(uploaded_files)} file(s) successfully.")
+            if delete_after_upload:
+                st.rerun()
         else:
             st.warning("⚠️ Please select at least one file.")
 
@@ -323,10 +353,11 @@ with tabs[2]:
         <h3>📥 Available Files</h3>
     """, unsafe_allow_html=True)
     
-    delete_after = st.toggle("🗑️ Delete after download", value=True)
+    delete_after_download = st.toggle("🗑️ Delete after download", value=True)
 
-    # Clean up files marked from last run
-    for file in get_files_marked_for_deletion():
+    # Clean up files marked for deletion
+    files_to_delete = get_files_marked_for_deletion()
+    for file in files_to_delete:
         try:
             os.remove(os.path.join(UPLOAD_DIR, file))
         except FileNotFoundError:
@@ -347,31 +378,31 @@ with tabs[2]:
             key="download_all"
         )
 
-        # Individual file previews and downloads
+        # Individual file previews and downloads in a grid
+        st.markdown('<div class="file-preview-grid">', unsafe_allow_html=True)
         for file in files:
             file_path = os.path.join(UPLOAD_DIR, file)
             preview = get_file_preview(file_path)
             st.markdown(f"""
-            <div class="file-preview">
-                <div>{preview}</div>
-                <div>
+            <div class="file-preview-card">
+                {preview}
+                <p style="font-size: 0.9rem; color: #c7d2fe;">{file}</p>
             """, unsafe_allow_html=True)
             
             with open(file_path, "rb") as f:
                 btn = st.download_button(
-                    label=f"⬇️ Download {file}",
+                    label=f"⬇️ Download",
                     data=f,
                     file_name=file,
                     mime="application/octet-stream",
                     key=f"download_{file}"
                 )
-            if btn and delete_after:
+            if btn and delete_after_download:
                 mark_for_deletion(file)
+                st.rerun()
             
-            st.markdown("""
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("""
     </div>
