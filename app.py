@@ -223,7 +223,7 @@ def check_for_file_changes():
         current_files = set(os.listdir(UPLOAD_DIR))
         if current_files != st.session_state.last_files:
             st.session_state.last_files = current_files
-            st.experimental_rerun()
+            st.rerun()  # Updated to st.rerun()
         st.session_state.last_file_check = current_time
 
 # Tabs
