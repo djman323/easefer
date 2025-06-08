@@ -75,16 +75,6 @@ def get_file_preview(file_path):
     else:
         return f'<p style="font-size: 0.9rem; color: #a5b4fc;">Size: {file_size:.2f} KB</p>'
 
-# Function to clear all files in the device's directory
-def clear_all_files(directory):
-    for file in os.listdir(directory):
-        file_path = os.path.join(directory, file)
-        if os.path.isfile(file_path):
-            try:
-                os.remove(file_path)
-            except FileNotFoundError:
-                pass
-
 # Custom CSS for Dark Theme
 st.markdown("""
     <style>
@@ -205,7 +195,7 @@ st.markdown("""
         margin: 2rem 0;
     }
     .stAlert {
-        background: rgba(255, 255, 251, 0.1);
+        background: rgba(255, 255, 255, 0.1);
         color: #e0e7ff;
         border-radius: 10px;
     }
@@ -355,12 +345,6 @@ with tabs[2]:
     """, unsafe_allow_html=True)
     
     delete_after_download = st.toggle("🗑️ Delete after download", value=True)
-
-    # Add Clear All Files button
-    if st.button("🗑️ Clear All Files", key="clear_all_files"):
-        clear_all_files(UPLOAD_DIR)
-        st.success("✅ All files have been cleared.")
-        st.rerun()
 
     files = [f for f in os.listdir(UPLOAD_DIR) if os.path.isfile(os.path.join(UPLOAD_DIR, f))]
     if not files:
