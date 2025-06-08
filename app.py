@@ -28,25 +28,22 @@ if "device_code" not in st.session_state:
 
 DEVICE_CODE = st.session_state.device_code
 UPLOAD_DIR = os.path.join(BASE_UPLOAD_DIR, DEVICE_CODE)
-Path(UPLOAD_DIR).mkdir(exist_ok=True)
+
+# Create the upload directory, including parent directories if they don't exist
+try:
+    Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+except Exception as e:
+    st.error(f"Failed to create directory {UPLOAD_DIR}: {str(e)}")
+    st.stop()
 
 # Function to create a ZIP file of all files in a directory
-def create_zip_of_files(directory, delete_after=False):
+def create_zip_of_files(directory):
     buffer = BytesIO()
-    files_to_delete = []
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for file in os.listdir(directory):
             file_path = os.path.join(directory, file)
             if os.path.isfile(file_path):
                 zip_file.write(file_path, file)
-                if delete_after:
-                    files_to_delete.append(file_path)
-    # Delete files immediately if delete_after is True
-    for file_path in files_to_delete:
-        try:
-            os.remove(file_path)
-        except FileNotFoundError:
-            pass
     buffer.seek(0)
     return buffer
 
@@ -83,6 +80,16 @@ def get_file_preview(file_path):
     
     else:
         return f'<p style="font-size: 0.9rem; color: #a5b4fc;">Size: {file_size:.2f} KB</p>'
+
+# Function to clear all files in the device's directory
+def clear_all_files(directory):
+    for file in os.listdir(directory):
+        file_path = os.path.join(directory, file)
+        if os.path.isfile(file_path):
+            try:
+                os.remove(file_path)
+            except FileNotFoundError:
+                pass
 
 # Custom CSS for Dark Theme
 st.markdown("""
@@ -204,7 +211,7 @@ st.markdown("""
         margin: 2rem 0;
     }
     .stAlert {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 251, 0.1);
         color: #e0e7ff;
         border-radius: 10px;
     }
@@ -355,11 +362,17 @@ with tabs[2]:
     
     delete_after_download = st.toggle("🗑️ Delete after download", value=True)
 
+    # Add Clear All Files button
+    if st.button("🗑️ Clear All Files", key="clear_all_files"):
+        clear_all_files(UPLOAD_DIR)
+        st.success("✅ All files have been cleared.")
+        st.rerun()
+
     files = [f for f in os.listdir(UPLOAD_DIR) if os.path.isfile(os.path.join(UPLOAD_DIR, f))]
     if not files:
         st.info("📭 No files available for download.")
     else:
-        zip_buffer = create_zip_of_files(UPLOAD_DIR, delete_after=delete_after_download)
+        zip_buffer = create_zip_of_files(UPLOAD_DIR)
         btn = st.download_button(
             label="⬇️ Download All Files",
             data=zip_buffer,
@@ -393,11 +406,7 @@ with tabs[2]:
                         mime="application/octet-stream",
                         key=f"download_{file}"
                     )
-                if btn and delete_after_download:
-                    try:
-                        os.remove(file_path)
-                    except FileNotFoundError:
-                        pass
+                if btn:
                     st.rerun()
             except FileNotFoundError:
                 continue
@@ -438,7 +447,7 @@ with tabs[3]:
             if not other_files:
                 st.info("📭 No files available from this device.")
             else:
-                zip_buffer = create_zip_of_files(other_device_dir, delete_after=False)
+                zip_buffer = create_zip_of_files(other_device_dir)
                 btn = st.download_button(
                     label=f"⬇️ Download All Files from {other_device_code}",
                     data=zip_buffer,
