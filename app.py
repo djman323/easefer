@@ -31,13 +31,22 @@ UPLOAD_DIR = os.path.join(BASE_UPLOAD_DIR, DEVICE_CODE)
 Path(UPLOAD_DIR).mkdir(exist_ok=True)
 
 # Function to create a ZIP file of all files in a directory
-def create_zip_of_files(directory):
+def create_zip_of_files(directory, delete_after=False):
     buffer = BytesIO()
+    files_to_delete = []
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for file in os.listdir(directory):
             file_path = os.path.join(directory, file)
             if os.path.isfile(file_path):
                 zip_file.write(file_path, file)
+                if delete_after:
+                    files_to_delete.append(file_path)
+    # Delete files immediately if delete_after is True
+    for file_path in files_to_delete:
+        try:
+            os.remove(file_path)
+        except FileNotFoundError:
+            pass
     buffer.seek(0)
     return buffer
 
@@ -350,7 +359,7 @@ with tabs[2]:
     if not files:
         st.info("📭 No files available for download.")
     else:
-        zip_buffer = create_zip_of_files(UPLOAD_DIR)
+        zip_buffer = create_zip_of_files(UPLOAD_DIR, delete_after=delete_after_download)
         btn = st.download_button(
             label="⬇️ Download All Files",
             data=zip_buffer,
@@ -384,7 +393,11 @@ with tabs[2]:
                         mime="application/octet-stream",
                         key=f"download_{file}"
                     )
-                if btn:
+                if btn and delete_after_download:
+                    try:
+                        os.remove(file_path)
+                    except FileNotFoundError:
+                        pass
                     st.rerun()
             except FileNotFoundError:
                 continue
@@ -425,7 +438,7 @@ with tabs[3]:
             if not other_files:
                 st.info("📭 No files available from this device.")
             else:
-                zip_buffer = create_zip_of_files(other_device_dir)
+                zip_buffer = create_zip_of_files(other_device_dir, delete_after=False)
                 btn = st.download_button(
                     label=f"⬇️ Download All Files from {other_device_code}",
                     data=zip_buffer,
